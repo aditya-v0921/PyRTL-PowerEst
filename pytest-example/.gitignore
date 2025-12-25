@@ -1,8 +1,0 @@
-.DS_Store
-.venv
-__pycache__
-.pytest_cache
-htmlcov
-.coverage
-test_answer.py
-test_bad.py
