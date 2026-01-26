@@ -1,35 +1,21 @@
-import pyrtl
-
-def build():
-    pyrtl.reset_working_block()
-
-    a = pyrtl.Input(8, 'A')
-    b = pyrtl.Input(8, 'B')
-
-    sumOut = pyrtl.Output(8, 'SUM')
-    carryOut = pyrtl.Output(1, 'CARRY')
-
-    # 9-bit result: lower 8 bits = SUM, bit 8 = carry out
-    result = a + b
-    sumOut <<= result[0:8]
-    carryOut <<= result[8]
-
+"""PyRTL Power Estimator - estimates power from toggle activity."""
 
 import pyrtl
 
-def countAllToggles(simTrace):
-    workingBlock = pyrtl.working_block()
+
+def countAllToggles(simTrace, block=None):
+    if block is None:
+        block = pyrtl.working_block()
     allToggles = {}
 
-    for wire in workingBlock.wirevector_set:
-        # Skip constants and unnamed wires
+    for wire in block.wirevector_set:
         if isinstance(wire, pyrtl.Const):
             continue
         if not wire.name:
             continue
 
         try:
-            values = simTrace.trace[wire.name] # list of ints, one per cycle
+            values = simTrace.trace[wire.name]
         except pyrtl.PyrtlError:
             continue
 
@@ -40,7 +26,6 @@ def countAllToggles(simTrace):
             prevVal = values[i]
             newVal = values[i + 1]
 
-            # XOR to find bits that changed
             delta = prevVal ^ newVal
             if delta != 0:
                 for bit in range(width):
@@ -57,7 +42,6 @@ def estPowerAllWires(allToggles, capacitanceF, voltage, clockFreqHz, simCycles):
     energyPerWireJ = {}
 
     for name, togglesPerBit in allToggles.items():
-        # Energy: E = toggles * 0.5 * C * V^2
         energyBits = [
             toggles * capacitanceF * halfVoltageSquared
             for toggles in togglesPerBit
@@ -75,33 +59,51 @@ def estPowerAllWires(allToggles, capacitanceF, voltage, clockFreqHz, simCycles):
     }
 
 
-def main():
-    build()
+def estimatePower(inputGenerator, capacitanceF=1e-15, voltage=1.0, clockFreqHz=50e6, block=None):
+    """
+    Estimate power consumption for a pyRTL circuit.
+
+    Args:
+        inputGenerator: Function returning a generator that yields input dicts per cycle.
+                        Dict keys must match your pyrtl.Input wire names.
+        capacitanceF: Capacitance per bit in Farads (default: 1)
+        voltage: Supply voltage in Volts (default: 1.0V)
+        clockFreqHz: Clock frequency in Hz (default: 50MHz)
+        block: pyrtl.Block to simulate. If None, uses pyrtl.working_block()
+
+    Returns:
+        Dict with energyPerWireJ, totalEnergyJ, avgPowerW, toggles, and simCycles
+
+    Example:
+        # Build circuit
+        pyrtl.reset_working_block()
+        a = pyrtl.Input(8, 'A')
+        b = pyrtl.Input(8, 'B')
+        out = pyrtl.Output(8, 'SUM')
+        out <<= a + b
+
+        # Define inputs matching wire names
+        def inputGenerator():
+            yield {'A': 10, 'B': 20}
+            yield {'A': 50, 'B': 100}
+
+        # Estimate power
+        report = estimatePower(inputGenerator)
+    """
+    if block is None:
+        block = pyrtl.working_block()
 
     simTrace = pyrtl.SimulationTrace()
     sim = pyrtl.Simulation(tracer=simTrace)
 
-    inputSequences = {
-        'A': [0b00000000, 0b10010101, 0b10101010, 0b10100010],
-        'B': [0b00000000, 0b10010111, 0b11110101, 0b10000100]
-    }
+    simCycles = 0
+    for inputs in inputGenerator():
+        sim.step(inputs)
+        simCycles += 1
 
-    sim.step_multiple(inputSequences)
-    simCycles = len(inputSequences['A'])
+    allToggles = countAllToggles(simTrace, block)
 
-    simulation = simTrace.render_trace()
-
-    allToggles = countAllToggles(simTrace)
-
-    print("Per-wire toggles (per bit)")
-    for name, togglesPerBit in allToggles.items():
-        print(f"  {name:6s}: {togglesPerBit}, total = {sum(togglesPerBit)}")
-
-    capacitanceF = 1e-15 # 1 fF per bit
-    voltage = 1.0 # 1 Volt
-    clockFreqHz = 50e6 # 50 MHz
-
-    report = estPowerAllWires(
+    powerReport = estPowerAllWires(
         allToggles=allToggles,
         capacitanceF=capacitanceF,
         voltage=voltage,
@@ -109,17 +111,50 @@ def main():
         simCycles=simCycles
     )
 
+    powerReport["toggles"] = allToggles
+    powerReport["simCycles"] = simCycles
+
+    return powerReport
+
+
+if __name__ == '__main__':
+    # Build circuit
+    pyrtl.reset_working_block()
+
+    a = pyrtl.Input(8, 'A')
+    b = pyrtl.Input(8, 'B')
+    sumOut = pyrtl.Output(8, 'SUM')
+    carryOut = pyrtl.Output(1, 'CARRY')
+
+    result = a + b
+    sumOut <<= result[0:8]
+    carryOut <<= result[8]
+
+    # Define input generator
+    def inputGenerator():
+        inputData = [
+            (0b00000000, 0b00000000),
+            (0b10010101, 0b10010111),
+            (0b10101010, 0b11110101),
+            (0b10100010, 0b10000100),
+        ]
+        for a_val, b_val in inputData:
+            yield {'A': a_val, 'B': b_val}
+
+    # Run power estimation
+    report = estimatePower(inputGenerator)
+
+    # Print results
+    print("Per-wire toggles (per bit)")
+    for name, togglesPerBit in report["toggles"].items():
+        print(f"  {name:6s}: {togglesPerBit}, total = {sum(togglesPerBit)}")
+
     print("\nPer-wire energy (J)")
     for name, energy in report["energyPerWireJ"].items():
         print(f"  {name:6s}: {energy:.3e} J")
 
-    print(f"\nTotal energy:  {report['totalEnergyJ']:.3e} J")
+    print(f"\nTotal energy: {report['totalEnergyJ']:.3e} J")
     print(f"Average power: {report['avgPowerW']:.3e} W")
-    print(simulation)
-
-
-if __name__ == '__main__':
-    main()
 
 # user passes generator to give the next step
 # same parameters as step_multiple, call step_multiple
