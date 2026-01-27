@@ -11,3 +11,11 @@ Power Estimator for Circuits in Python RTL (Register-Transfer-Level) Library
 
 ## Returns:
     Dict with energyPerWireJ, totalEnergyJ, avgPowerW, toggles, and simCycles
+
+## Example:
+    Build circuit:
+    pyrtl.reset_working_block()
+    a = pyrtl.Input(8, 'A')
+    b = pyrtl.Input(8, 'B')
+    out = pyrtl.Output(8, 'SUM')
+    out <<= a + b
