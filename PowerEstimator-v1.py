@@ -61,18 +61,6 @@ def estPowerAllWires(allToggles, capacitanceF, voltage, clockFreqHz, simCycles):
 
 def estimatePower(inputGenerator, capacitanceF=1e-15, voltage=1.0, clockFreqHz=50e6, block=None):
     """
-    Estimate power consumption for a pyRTL circuit.
-
-    Args:
-        inputGenerator: Function returning a generator that yields input dicts per cycle.
-                        Dict keys must match your pyrtl.Input wire names.
-        capacitanceF: Capacitance per bit in Farads (default: 1)
-        voltage: Supply voltage in Volts (default: 1.0V)
-        clockFreqHz: Clock frequency in Hz (default: 50MHz)
-        block: pyrtl.Block to simulate. If None, uses pyrtl.working_block()
-
-    Returns:
-        Dict with energyPerWireJ, totalEnergyJ, avgPowerW, toggles, and simCycles
 
     Example:
         # Build circuit
