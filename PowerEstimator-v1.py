@@ -60,15 +60,7 @@ def estPowerAllWires(allToggles, capacitanceF, voltage, clockFreqHz, simCycles):
 
 
 def estimatePower(inputGenerator, capacitanceF=1e-15, voltage=1.0, clockFreqHz=50e6, block=None):
-    """
-        # Define inputs matching wire names
-        def inputGenerator():
-            yield {'A': 10, 'B': 20}
-            yield {'A': 50, 'B': 100}
 
-        # Estimate power
-        report = estimatePower(inputGenerator)
-    """
     if block is None:
         block = pyrtl.working_block()
 
