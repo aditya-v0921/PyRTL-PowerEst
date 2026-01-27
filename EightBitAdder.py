@@ -8,5 +8,6 @@ def build_adder():
     CARRY = pyrtl.Output(1, 'CARRY')
 
     result = A + B
+
     SUM <<= result[0:8]
     CARRY <<= result[8]
