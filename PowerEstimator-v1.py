@@ -1,5 +1,3 @@
-"""PyRTL Power Estimator - estimates power from toggle activity."""
-
 import pyrtl
 
 
@@ -86,46 +84,3 @@ def estimatePower(inputGenerator, capacitanceF=1e-15, voltage=1.0, clockFreqHz=5
     powerReport["simCycles"] = simCycles
 
     return powerReport
-
-
-if __name__ == '__main__':
-    # Build circuit
-    pyrtl.reset_working_block()
-
-    a = pyrtl.Input(8, 'A')
-    b = pyrtl.Input(8, 'B')
-    sumOut = pyrtl.Output(8, 'SUM')
-    carryOut = pyrtl.Output(1, 'CARRY')
-
-    result = a + b
-    sumOut <<= result[0:8]
-    carryOut <<= result[8]
-
-    # Define input generator
-    def inputGenerator():
-        inputData = [
-            (0b00000000, 0b00000000),
-            (0b10010101, 0b10010111),
-            (0b10101010, 0b11110101),
-            (0b10100010, 0b10000100),
-        ]
-        for a_val, b_val in inputData:
-            yield {'A': a_val, 'B': b_val}
-
-    # Run power estimation
-    report = estimatePower(inputGenerator)
-
-    # Print results
-    print("Per-wire toggles (per bit)")
-    for name, togglesPerBit in report["toggles"].items():
-        print(f"  {name:6s}: {togglesPerBit}, total = {sum(togglesPerBit)}")
-
-    print("\nPer-wire energy (J)")
-    for name, energy in report["energyPerWireJ"].items():
-        print(f"  {name:6s}: {energy:.3e} J")
-
-    print(f"\nTotal energy: {report['totalEnergyJ']:.3e} J")
-    print(f"Average power: {report['avgPowerW']:.3e} W")
-
-# user passes generator to give the next step
-# same parameters as step_multiple, call step_multiple
