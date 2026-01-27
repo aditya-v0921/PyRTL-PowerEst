@@ -7,27 +7,37 @@ def countAllToggles(simTrace, block=None):
     allToggles = {}
 
     for wire in block.wirevector_set:
+
+        # Skip hardcoded and unnamed wires
         if isinstance(wire, pyrtl.Const):
             continue
         if not wire.name:
             continue
 
         try:
+            # List of values
             values = simTrace.trace[wire.name]
+        # Skip if not recorded
         except pyrtl.PyrtlError:
             continue
 
+        # Input wire length
         width = len(wire)
         togglesPerBit = [0] * width
 
+        # Compare values per cycle
         for i in range(len(values) - 1):
             prevVal = values[i]
             newVal = values[i + 1]
 
+            # XOR change between values
             delta = prevVal ^ newVal
+
+            # Check for toggle change
             if delta != 0:
                 for bit in range(width):
                     if (delta >> bit) & 1:
+                        # Increment counter
                         togglesPerBit[bit] += 1
 
         allToggles[wire.name] = togglesPerBit
@@ -40,8 +50,7 @@ def estPowerAllWires(allToggles, capacitanceF, voltage, clockFreqHz, simCycles):
     energyPerWireJ = {}
 
     for name, togglesPerBit in allToggles.items():
-        energyBits = [
-            toggles * capacitanceF * halfVoltageSquared
+        energyBits = [toggles * capacitanceF * halfVoltageSquared
             for toggles in togglesPerBit
         ]
         energyPerWireJ[name] = sum(energyBits)
