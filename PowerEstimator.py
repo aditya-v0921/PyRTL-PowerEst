@@ -17,6 +17,7 @@ def countAllToggles(simTrace, block=None):
         try:
             # List of values
             values = simTrace.trace[wire.name]
+
         # Skip if not recorded
         except pyrtl.PyrtlError:
             continue
@@ -49,6 +50,7 @@ def estPowerAllWires(allToggles, capacitanceF, voltage, clockFreqHz, simCycles):
     halfVoltageSquared = 0.5 * (voltage ** 2)
     energyPerWireJ = {}
 
+    # Calculate and sum all energy / bit
     for name, togglesPerBit in allToggles.items():
         energyBits = [toggles * capacitanceF * halfVoltageSquared
             for toggles in togglesPerBit
@@ -56,15 +58,23 @@ def estPowerAllWires(allToggles, capacitanceF, voltage, clockFreqHz, simCycles):
         energyPerWireJ[name] = sum(energyBits)
 
     totalEnergyJ = sum(energyPerWireJ.values())
-    simTimeS = simCycles / float(clockFreqHz) if clockFreqHz > 0 else 0.0
-    avgPowerW = totalEnergyJ / simTimeS if simTimeS > 0 else 0.0
+
+    # Calculate simulation time in seconds
+    if clockFreqHz > 0:
+        simTimeS = simCycles / float(clockFreqHz)
+    else:
+        simTimeS = 0.0
+
+    if simTimeS > 0:
+        avgPowerW = totalEnergyJ / simTimeS
+    else:
+        avgPowerW = 0.0
 
     return {
         "energyPerWireJ": energyPerWireJ,
         "totalEnergyJ": totalEnergyJ,
         "avgPowerW": avgPowerW,
     }
-
 
 def estimatePower(inputGenerator, capacitanceF=1e-15, voltage=1.0, clockFreqHz=50e6, block=None):
 
